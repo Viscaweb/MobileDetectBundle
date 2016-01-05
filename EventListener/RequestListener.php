@@ -37,6 +37,14 @@ class RequestListener
     CONST FULL      = 'full';
 
     protected $container;
+
+    /**
+     * The route used to detect Symfony fragments
+     *
+     * @var string
+     */
+    protected $fragmentPath;
+
     /**
      * @var MobileDetector
      */
@@ -58,12 +66,14 @@ class RequestListener
      * @param Container $serviceContainer Service container
      * @param array     $redirectConf     Config redirect
      * @param boolean   $fullPath         Full path or front page
+     * @param string    $fragmentPath The fragment route
      */
-    public function __construct(Container $serviceContainer, array $redirectConf,  $fullPath = true)
+    public function __construct(Container $serviceContainer, array $redirectConf, $fullPath = true, $fragmentPath = '')
     {
         $this->container = $serviceContainer;
         $this->mobileDetector = $serviceContainer->get('mobile_detect.mobile_detector');
         $this->deviceView = $serviceContainer->get('mobile_detect.device_view');
+        $this->fragmentPath = $fragmentPath;
 
         // Configs mobile & tablet
         $this->redirectConf = $redirectConf;
@@ -79,9 +89,17 @@ class RequestListener
      */
     public function handleRequest(GetResponseEvent $event)
     {
-        // only handle master request, do not handle sub request like esi includes
-        // If the device view is "not the mobile view" (e.g. we're not in the request context)
-        if ($event->getRequestType() !== HttpKernelInterface::MASTER_REQUEST || $this->deviceView->isNotMobileView()) {
+        // Some requests are not altered at all:
+        // - The requests not flagged as MASTER (do not handle sub request like esi includes)
+        // - The fragments request created by Symfony (not considered at SUB_REQUESTS but MASTER)
+        // - If the device view is "not the mobile view" (e.g. we're not in the request context)
+        $currentRequestType = $event->getRequestType();
+        $masterRequestType = HttpKernelInterface::MASTER_REQUEST;
+        $isNotMasterRequest = $currentRequestType !== $masterRequestType;
+
+        $isFragmentRequest = ($this->fragmentPath === rawurldecode($event->getRequest()->getPathInfo()));
+
+        if ($isNotMasterRequest || $isFragmentRequest || $this->deviceView->isNotMobileView()) {
             return;
         }
 
