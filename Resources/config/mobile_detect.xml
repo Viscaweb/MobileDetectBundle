@@ -14,6 +14,7 @@
 
         <service id="mobile_detect.device_view" class="%mobile_detect.device_view.class%">
             <argument type="service" id="service_container" />
+            <argument>%mobile_detect.redirect%</argument>
         </service>
     </services>
 </container>

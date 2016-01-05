@@ -51,8 +51,9 @@ class DeviceView
      * Constructor
      *
      * @param \Symfony\Component\DependencyInjection\Container $serviceContainer
+     * @param array                                            $redirectConf
      */
-    public function __construct(Container $serviceContainer)
+    public function __construct(Container $serviceContainer, array $redirectConf)
     {
         if (false === $serviceContainer->isScopeActive('request')) {
             $this->viewType = self::VIEW_NOT_MOBILE;
@@ -66,6 +67,11 @@ class DeviceView
             $this->viewType = $this->request->query->get(self::SWITCH_PARAM);
         } elseif ($this->request->cookies->has(self::COOKIE_KEY)) {
             $this->viewType = $this->request->cookies->get(self::COOKIE_KEY);
+        } else if (!empty($redirectConf)){
+            $detectedView = $this->detectViewUsingHost($redirectConf);
+            if (!empty($detectedView)){
+                $this->viewType = $detectedView;
+            }
         }
         $this->requestedViewType = $this->viewType;
     }
@@ -271,5 +277,18 @@ class DeviceView
         $currentDate = new \Datetime('+1 month');
 
         return new Cookie(self::COOKIE_KEY, $cookieValue, $currentDate->format('Y-m-d'));
+    }
+
+    protected function detectViewUsingHost(array $redirectConf)
+    {
+        $request = $this->request;
+        $currentHost = $request->getScheme() . '://' . $request->getHost();
+        foreach($redirectConf as $view => $viewConfig){
+            if (isset($viewConfig['host']) && $viewConfig['host'] === $currentHost){
+                return $view;
+            }
+        }
+
+        return false;
     }
 }
