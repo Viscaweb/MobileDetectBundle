@@ -289,11 +289,20 @@ class RequestListener
                 // Make sure to hint at the device override, otherwise infinite loop
                 // redirections may occur if different device views are hosted on
                 // different domains (since the cookie can't be shared across domains)
-                $queryParams = $this->container->get('request')->query->all();
-                $queryParams[DeviceView::SWITCH_PARAM] = $platform;
+                $originalRequest = $this->getRequest();
+                $newHost = rtrim(
+                    $this->redirectConf[$platform]['host'],
+                    '/'
+                );
+                $newHost = preg_replace('#^http[s]?://#', '', $newHost);
 
-                return rtrim($this->redirectConf[$platform]['host'], '/') . $this->container->get('request')->getPathInfo() . '?' . Request::normalizeQueryString(http_build_query($queryParams));
-            } elseif (self::REDIRECT_WITHOUT_PATH === $routingOption) {
+                $request = $originalRequest->duplicate();
+
+                $request->query->set(DeviceView::SWITCH_PARAM, $platform);
+                $request->headers->set('HOST', $newHost);
+
+                return $request->getUri();
+             } elseif (self::REDIRECT_WITHOUT_PATH === $routingOption) {
                 // Make sure to hint at the device override, otherwise infinite loop
                 // redirections may occur if different device views are hosted on
                 // different domains (since the cookie can't be shared across domains)
