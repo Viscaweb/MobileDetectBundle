@@ -96,10 +96,11 @@ class RequestListener
         $currentRequestType = $event->getRequestType();
         $masterRequestType = HttpKernelInterface::MASTER_REQUEST;
         $isNotMasterRequest = $currentRequestType !== $masterRequestType;
+        $isSymfonyClientRequest = $this->isSymfonyClientRequest($event->getRequest());
 
         $isFragmentRequest = ($this->fragmentPath === rawurldecode($event->getRequest()->getPathInfo()));
 
-        if ($isNotMasterRequest || $isFragmentRequest || $this->deviceView->isNotMobileView()) {
+        if ($isNotMasterRequest || $isFragmentRequest || $this->deviceView->isNotMobileView() || $isSymfonyClientRequest) {
             return;
         }
 
@@ -357,6 +358,21 @@ class RequestListener
         $request = $this->container->get('request');
 
         return $request->getScheme() . '://' . $request->getHost();
+    }
+
+    /**
+     * @param Request $request
+     *
+     * @return bool
+     */
+    private function isSymfonyClientRequest(Request $request)
+    {
+        return (
+            $request->server->has('HTTP_HOST') &&
+            $request->server->has('HTTP_USER_AGENT') &&
+            $request->server->get('HTTP_HOST') === 'localhost' &&
+            $request->server->get('HTTP_USER_AGENT') === 'Symfony2 BrowserKit'
+        );
     }
 
 }
