@@ -44,6 +44,19 @@ class MobileDetectExtension extends Extension
             $config['redirect']['tablet']['is_enabled'] = false;
         }
 
+        foreach($config['redirect'] as $view => $viewConfig){
+            if (!empty($viewConfig['host_scheme']) && !empty($viewConfig['host'])){
+                $hostFullName = sprintf(
+                    '%s://%s%s',
+                    $viewConfig['host_scheme'],
+                    $viewConfig['host'],
+                    ($viewConfig['host_port'] == 80 ? '' : ':'.$viewConfig['host_port'])
+                );
+                $config['redirect'][$view]['host'] = $hostFullName;
+            }
+            unset($config['redirect'][$view]['host_scheme'], $config['redirect'][$view]['host_port']);
+        }
+
         $container->setParameter('mobile_detect.redirect', $config['redirect']);
         $container->setParameter('mobile_detect.switch_device_view.save_referer_path', $config['switch_device_view']['save_referer_path']);
 
