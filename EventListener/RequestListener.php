@@ -289,7 +289,7 @@ class RequestListener
                 // Make sure to hint at the device override, otherwise infinite loop
                 // redirections may occur if different device views are hosted on
                 // different domains (since the cookie can't be shared across domains)
-                $originalRequest = $this->getRequest();
+                $originalRequest = $this->container->get('request');
                 $newHost = rtrim(
                     $this->redirectConf[$platform]['host'],
                     '/'
