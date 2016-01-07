@@ -148,7 +148,7 @@ class DeviceView
 
     /**
      * Sets the view type.
-     * 
+     *
      * @param string $view
      */
     public function setView($view)
@@ -282,7 +282,13 @@ class DeviceView
     protected function detectViewUsingHost(array $redirectConf)
     {
         $request = $this->request;
-        $currentHost = $request->getScheme() . '://' . $request->getHost();
+        $currentHost = sprintf(
+            '%s://%s%s',
+            $request->getScheme(),
+            $request->getHost(),
+            ($request->getPort() == 80 ? '' : ':'.$request->getPort())
+        );
+
         foreach($redirectConf as $view => $viewConfig){
             if (isset($viewConfig['host']) && $viewConfig['host'] === $currentHost){
                 return $view;

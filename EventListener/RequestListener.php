@@ -356,8 +356,12 @@ class RequestListener
     protected function getCurrentHost()
     {
         $request = $this->container->get('request');
-
-        return $request->getScheme() . '://' . $request->getHost();
+        return sprintf(
+            '%s://%s%s',
+            $request->getScheme(),
+            $request->getHost(),
+            ($request->getPort() == 80 ? '' : ':'.$request->getPort())
+        );
     }
 
     /**
