@@ -14,6 +14,7 @@ namespace SunCat\MobileDetectBundle\Twig\Extension;
 use SunCat\MobileDetectBundle\DeviceDetector\MobileDetector;
 use SunCat\MobileDetectBundle\Helper\DeviceView;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Twig_Extension;
 
 /**
@@ -187,11 +188,14 @@ class MobileDetectExtension extends Twig_Extension
     }
 
     /**
-     * Sets the request from the current scope.
-     * @param Request $request
+     * Sets the request stack from the current scope.
+     * @param RequestStack $request
      */
-    public function setRequest($request) {
-        $this->request = $request;
+    public function setRequest(RequestStack $requestStack = null)
+    {
+        if (null !== $requestStack) {
+            $this->request = $requestStack->getMasterRequest();
+        }
     }
 
     /**
