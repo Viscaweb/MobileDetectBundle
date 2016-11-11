@@ -11,6 +11,8 @@
 
 namespace SunCat\MobileDetectBundle\EventListener;
 
+use Sonata\AdminBundle\Route\RouteCollection;
+use Symfony\Component\Config\ConfigCache;
 use Symfony\Component\HttpKernel\Event\GetResponseEvent;
 use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
 use Symfony\Component\DependencyInjection\Container;
@@ -36,6 +38,9 @@ class RequestListener
     CONST TABLET    = 'tablet';
     CONST FULL      = 'full';
 
+    CONST CACHE_FILE_NAME = 'mobile_detect_routes.php';
+
+    /** @var Container */
     protected $container;
 
     /**
@@ -60,6 +65,12 @@ class RequestListener
     protected $needModifyResponse = false;
     protected $modifyResponseClosure;
 
+    /** @var string */
+    private $cacheDir;
+
+    /** @var RouteCollection|null */
+    private $routeCollection;
+
     /**
      * Constructor
      *
@@ -78,6 +89,9 @@ class RequestListener
         // Configs mobile & tablet
         $this->redirectConf = $redirectConf;
         $this->isFullPath = $fullPath;
+
+        $this->cacheDir = $this->container->getParameter('kernel.cache_dir');
+        $this->routeCollection = null;
     }
 
     /**
@@ -148,7 +162,7 @@ class RequestListener
     /**
      * Will this request listener modify the response? This flag will be set during the "handleRequest" phase.
      * Made public for testability.
-     * 
+     *
      * @return boolean True if the response needs to be modified.
      */
     public function needsResponseModification()
@@ -173,14 +187,14 @@ class RequestListener
 
     /**
      * Do we have to redirect?
-     * 
+     *
      * @param string $view For which view should be check?
-     * 
+     *
      * @return boolean
      */
     protected function mustRedirect($view)
     {
-        if (!isset($this->redirectConf[$view]) || !$this->redirectConf[$view]['is_enabled'] || 
+        if (!isset($this->redirectConf[$view]) || !$this->redirectConf[$view]['is_enabled'] ||
             ($this->getRoutingOption($view) === self::NO_REDIRECT)) {
 
             return false;
@@ -260,9 +274,9 @@ class RequestListener
 
     /**
      * Gets the RedirectResponse for the specified view.
-     * 
+     *
      * @param string $view The view for which we want the RedirectResponse.
-     * 
+     *
      * @return \Symfony\Component\HttpFoundation\RedirectResponse
      */
     protected function getRedirectResponse($view)
@@ -326,12 +340,12 @@ class RequestListener
     protected function getRoutingOption($name)
     {
         $option = null;
-        $route = $this
-                    ->container
-                    ->get('router')
-                    ->getRouteCollection()
-                    ->get($this->container->get('request')->get('_route'))
-                ;
+
+        if (!$this->routeCollection instanceof RouteCollection) {
+            $this->routeCollection = $this->getRoutesCollection();
+        }
+
+        $route = $this->routeCollection->get($this->container->get('request')->get('_route'));
 
         if ($route instanceof Route) {
             $option = $route->getOption($name);
@@ -377,6 +391,35 @@ class RequestListener
             $request->server->get('HTTP_HOST') === 'localhost' &&
             $request->server->get('HTTP_USER_AGENT') === 'Symfony2 BrowserKit'
         );
+    }
+
+    /**
+     * Returns the RoutesCollection if any.
+     *
+     * @return RouteCollection
+     */
+    private function getRoutesCollection(){
+        $cacheFile = $this->cacheDir . '/' . self::CACHE_FILE_NAME;
+
+        if (is_file($cacheFile)) {
+            $routesFileContent = require $cacheFile;
+            $routesContent = unserialize($routesFileContent);
+        } else {
+            $routesContent = $this->container->get('router')->getRouteCollection();
+
+            /*
+             * We need to use the serializer because the __set_state method created
+             * by var_export() is not supported by a RouteCollection object
+             */
+            file_put_contents($cacheFile,
+                sprintf(
+                    '<?php return %s;',
+                    var_export(serialize($routesContent), true)
+                )
+            );
+        }
+
+        return $routesContent;
     }
 
 }
