@@ -34,16 +34,6 @@ class MobileDetectExtension extends Extension
         $loader->load('listener.xml');
         $loader->load('twig.xml');
 
-        // valid mobile host
-        if ($config['redirect']['mobile']['is_enabled'] && !$this->validHost($config['redirect']['mobile']['host'])) {
-            $config['redirect']['mobile']['is_enabled'] = false;
-        }
-
-        // valid tablet host
-        if ($config['redirect']['tablet']['is_enabled'] && !$this->validHost($config['redirect']['tablet']['host'])) {
-            $config['redirect']['tablet']['is_enabled'] = false;
-        }
-
         foreach($config['redirect'] as $view => $viewConfig){
             if (!empty($viewConfig['host_scheme']) && !empty($viewConfig['host'])){
                 $hostFullName = sprintf(
@@ -55,6 +45,16 @@ class MobileDetectExtension extends Extension
                 $config['redirect'][$view]['host'] = $hostFullName;
             }
             unset($config['redirect'][$view]['host_scheme'], $config['redirect'][$view]['host_port']);
+        }
+
+        // valid mobile host
+        if ($config['redirect']['mobile']['is_enabled'] && !$this->validHost($config['redirect']['mobile']['host'])) {
+            $config['redirect']['mobile']['is_enabled'] = false;
+        }
+
+        // valid tablet host
+        if ($config['redirect']['tablet']['is_enabled'] && !$this->validHost($config['redirect']['tablet']['host'])) {
+            $config['redirect']['tablet']['is_enabled'] = false;
         }
 
         $container->setParameter('mobile_detect.redirect', $config['redirect']);
