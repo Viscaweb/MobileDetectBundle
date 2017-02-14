@@ -67,6 +67,8 @@ class DeviceView
             $this->viewType = $this->request->query->get(self::SWITCH_PARAM);
         } elseif ($this->request->cookies->has(self::COOKIE_KEY)) {
             $this->viewType = $this->request->cookies->get(self::COOKIE_KEY);
+        } else if ($this->request->headers->has('x-device-view')) {
+            $this->viewType = $this->request->headers->get('x-device-view');
         }
         $this->requestedViewType = $this->viewType;
     }
