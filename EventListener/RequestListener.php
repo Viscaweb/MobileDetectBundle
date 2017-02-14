@@ -17,6 +17,7 @@ use Symfony\Component\HttpKernel\Event\GetResponseEvent;
 use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
 use Symfony\Component\DependencyInjection\Container;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
+use Symfony\Component\Routing\Exception\ResourceNotFoundException;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\HttpFoundation\Request;
 use SunCat\MobileDetectBundle\DeviceDetector\MobileDetector;
@@ -108,15 +109,19 @@ class RequestListener
         // - The fragments request created by Symfony (not considered at SUB_REQUESTS but MASTER)
         // - If the device view is "not the mobile view" (e.g. we're not in the request context)
         $currentRequestType = $event->getRequestType();
-        $masterRequestType = HttpKernelInterface::MASTER_REQUEST;
-        $isNotMasterRequest = $currentRequestType !== $masterRequestType;
+        $isNotMasterRequest = $currentRequestType !== HttpKernelInterface::MASTER_REQUEST;
         $isSymfonyClientRequest = $this->isSymfonyClientRequest($event->getRequest());
 
-        $isFragmentRequest = ($this->fragmentPath === rawurldecode($event->getRequest()->getPathInfo()));
+        $isFragmentRequest = (
+            $this->fragmentPath === rawurldecode($event->getRequest()->getPathInfo()) ||
+            $this->isWidgetRequest($event->getRequest())
+        );
 
-        if ($isNotMasterRequest || $isFragmentRequest || $this->deviceView->isNotMobileView() || $isSymfonyClientRequest) {
+        $isNotMobileView = $this->deviceView->isNotMobileView();
+        if ($isNotMasterRequest || $isFragmentRequest || $isNotMobileView || $isSymfonyClientRequest) {
             return;
         }
+
 
         $this->mobileDetector->setUserAgent($event->getRequest()->headers->get('user-agent'));
 
@@ -420,6 +425,22 @@ class RequestListener
         }
 
         return $routesContent;
+    }
+
+    /**
+     * @param Request $request
+     *
+     * @return bool
+     */
+    private function isWidgetRequest(Request $request)
+    {
+        try {
+            $matchedRoute = $this->container->get('router')->matchRequest($request);
+
+            return ($matchedRoute['_route'] === 'app_widget_html');
+        } catch (ResourceNotFoundException $ex) {
+            return false;
+        }
     }
 
 }
