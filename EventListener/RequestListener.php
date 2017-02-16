@@ -12,16 +12,15 @@
 namespace SunCat\MobileDetectBundle\EventListener;
 
 use Sonata\AdminBundle\Route\RouteCollection;
-use Symfony\Component\Config\ConfigCache;
-use Symfony\Component\HttpKernel\Event\GetResponseEvent;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use SunCat\MobileDetectBundle\DeviceDetector\MobileDetector;
+use SunCat\MobileDetectBundle\Helper\DeviceView;
 use Symfony\Component\DependencyInjection\Container;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\Event\GetResponseEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\Routing\Exception\ResourceNotFoundException;
 use Symfony\Component\Routing\Route;
-use Symfony\Component\HttpFoundation\Request;
-use SunCat\MobileDetectBundle\DeviceDetector\MobileDetector;
-use SunCat\MobileDetectBundle\Helper\DeviceView;
 
 /**
  * Request listener
@@ -35,9 +34,9 @@ class RequestListener
     CONST NO_REDIRECT = 'no_redirect';
     CONST REDIRECT_WITHOUT_PATH = 'redirect_without_path';
 
-    CONST MOBILE    = 'mobile';
-    CONST TABLET    = 'tablet';
-    CONST FULL      = 'full';
+    CONST MOBILE = 'mobile';
+    CONST TABLET = 'tablet';
+    CONST FULL = 'full';
 
     CONST CACHE_FILE_NAME = 'mobile_detect_routes.php';
 
@@ -72,13 +71,16 @@ class RequestListener
     /** @var RouteCollection|null */
     private $routeCollection;
 
+    /** @var bool */
+    private $enabled = true;
+
     /**
      * Constructor
      *
      * @param Container $serviceContainer Service container
      * @param array     $redirectConf     Config redirect
      * @param boolean   $fullPath         Full path or front page
-     * @param string    $fragmentPath The fragment route
+     * @param string    $fragmentPath     The fragment route
      */
     public function __construct(Container $serviceContainer, array $redirectConf, $fullPath = true, $fragmentPath = '')
     {
@@ -128,6 +130,7 @@ class RequestListener
         // Sets the flag for the response handled by the GET switch param and the type of the view.
         if ($this->deviceView->hasSwitchParam()) {
             $event->setResponse($this->getRedirectResponseBySwitchParam());
+
             return;
         }
 
@@ -148,6 +151,7 @@ class RequestListener
             if (($response = $this->getRedirectResponse($this->deviceView->getViewType()))) {
                 $event->setResponse($response);
             }
+
             return;
         }
 
@@ -182,12 +186,28 @@ class RequestListener
      */
     public function handleResponse(FilterResponseEvent $event)
     {
-        if ($this->needModifyResponse && $this->modifyResponseClosure instanceof \Closure) {
+        if ($this->isEnabled() && $this->needModifyResponse && $this->modifyResponseClosure instanceof \Closure) {
             $modifyClosure = $this->modifyResponseClosure;
             $event->setResponse($modifyClosure($this->deviceView, $event));
 
             return;
         }
+    }
+
+    /**
+     * @return bool
+     */
+    public function isEnabled()
+    {
+        return $this->enabled === true;
+    }
+
+    /**
+     * @param bool $enabled
+     */
+    public function setEnabled($enabled)
+    {
+        $this->enabled = $enabled;
     }
 
     /**
@@ -200,7 +220,8 @@ class RequestListener
     protected function mustRedirect($view)
     {
         if (!isset($this->redirectConf[$view]) || !$this->redirectConf[$view]['is_enabled'] ||
-            ($this->getRoutingOption($view) === self::NO_REDIRECT)) {
+            ($this->getRoutingOption($view) === self::NO_REDIRECT)
+        ) {
 
             return false;
         }
@@ -223,7 +244,7 @@ class RequestListener
      */
     protected function prepareResponseModification($view)
     {
-        $this->modifyResponseClosure = function($deviceView, $event) use ($view) {
+        $this->modifyResponseClosure = function ($deviceView, $event) use ($view) {
             return $deviceView->modifyResponse($view, $event->getResponse());
         };
     }
@@ -236,7 +257,7 @@ class RequestListener
     protected function needNotMobileResponseModify()
     {
         if ((null === $this->deviceView->getViewType() || $this->deviceView->isNotMobileView())) {
-            $this->modifyResponseClosure = function($deviceView, $event) {
+            $this->modifyResponseClosure = function ($deviceView, $event) {
                 return $deviceView->modifyNotMobileResponse($event->getResponse());
             };
 
@@ -266,8 +287,8 @@ class RequestListener
                 if (array_key_exists('device_view', $queryParams)) {
                     unset($queryParams['device_view']);
                 }
-                if(sizeof($queryParams) > 0) {
-                    $redirectUrl .= '?'. Request::normalizeQueryString(http_build_query($queryParams));
+                if (sizeof($queryParams) > 0) {
+                    $redirectUrl .= '?' . Request::normalizeQueryString(http_build_query($queryParams));
                 }
             } else {
                 $redirectUrl = $this->getCurrentHost();
@@ -322,7 +343,7 @@ class RequestListener
                 $request->headers->set('HOST', $newHost);
 
                 return $request->getUri();
-             } elseif (self::REDIRECT_WITHOUT_PATH === $routingOption) {
+            } elseif (self::REDIRECT_WITHOUT_PATH === $routingOption) {
                 // Make sure to hint at the device override, otherwise infinite loop
                 // redirections may occur if different device views are hosted on
                 // different domains (since the cookie can't be shared across domains)
@@ -375,11 +396,12 @@ class RequestListener
     protected function getCurrentHost()
     {
         $request = $this->container->get('request');
+
         return sprintf(
             '%s://%s%s',
             $request->getScheme(),
             $request->getHost(),
-            ($request->getPort() == 80 ? '' : ':'.$request->getPort())
+            ($request->getPort() == 80 ? '' : ':' . $request->getPort())
         );
     }
 
@@ -403,7 +425,8 @@ class RequestListener
      *
      * @return RouteCollection
      */
-    private function getRoutesCollection(){
+    private function getRoutesCollection()
+    {
         $cacheFile = $this->cacheDir . '/' . self::CACHE_FILE_NAME;
 
         if (is_file($cacheFile)) {
@@ -416,7 +439,8 @@ class RequestListener
              * We need to use the serializer because the __set_state method created
              * by var_export() is not supported by a RouteCollection object
              */
-            file_put_contents($cacheFile,
+            file_put_contents(
+                $cacheFile,
                 sprintf(
                     '<?php return %s;',
                     var_export(serialize($routesContent), true)
