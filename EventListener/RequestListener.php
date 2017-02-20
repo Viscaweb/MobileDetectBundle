@@ -439,13 +439,8 @@ class RequestListener
              * We need to use the serializer because the __set_state method created
              * by var_export() is not supported by a RouteCollection object
              */
-            file_put_contents(
-                $cacheFile,
-                sprintf(
-                    '<?php return %s;',
-                    var_export(serialize($routesContent), true)
-                )
-            );
+            $cacheFileContent = sprintf('<?php return %s;', var_export(serialize($routesContent), true));
+            file_put_contents($cacheFile, $cacheFileContent, LOCK_EX);
         }
 
         return $routesContent;
