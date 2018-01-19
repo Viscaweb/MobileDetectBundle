@@ -401,7 +401,7 @@ class RequestListener
             '%s://%s%s',
             $request->getScheme(),
             $request->getHost(),
-            ($request->getPort() == 80 ? '' : ':' . $request->getPort())
+            ($request->getPort() == 80 || $request->getPort() == 443 ? '' : ':' . $request->getPort())
         );
     }
 
