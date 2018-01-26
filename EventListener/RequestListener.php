@@ -341,6 +341,9 @@ class RequestListener
 
                 $request->query->set(DeviceView::SWITCH_PARAM, $platform);
                 $request->headers->set('HOST', $newHost);
+                if (false !== strpos($this->redirectConf[$platform]['host'], 'https')) {
+                    $request->server->set('HTTPS', 'on');
+                }
 
                 return $request->getUri();
             } elseif (self::REDIRECT_WITHOUT_PATH === $routingOption) {
